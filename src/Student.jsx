@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { getAIRecommendation, askAITutor } from "./ai";
 
-/* ---------- Mock Data ---------- */
+
 
 const assignmentsData = [
   {
@@ -15,7 +16,8 @@ const assignmentsData = [
     title: "English Essay",
     due: "Dec 20",
     status: "Submitted",
-    submission: "This essay explains the main theme of the story and how the characters develop.",
+    submission:
+      "This essay explains the main theme of the story and how the characters develop.",
   },
 ];
 
@@ -29,11 +31,54 @@ const slides = [
   { id: 2, title: "English – Essay Writing", week: "Week 4" },
 ];
 
-/* ---------- Component ---------- */
+
 
 export default function Student({ setRole }) {
   const [selected, setSelected] = useState(null);
   const [answer, setAnswer] = useState("");
+
+  // AI Learning Coach
+  const [aiCoachText, setAiCoachText] = useState("");
+  const [loadingCoach, setLoadingCoach] = useState(false);
+
+  // AI Tutor
+  const [question, setQuestion] = useState("");
+  const [aiReply, setAiReply] = useState("");
+  const [asking, setAsking] = useState(false);
+
+  async function runCoachAI() {
+    setLoadingCoach(true);
+    setAiCoachText("");
+
+    try {
+      const result = await getAIRecommendation(grades);
+      setAiCoachText(result);
+    } catch {
+      setAiCoachText("AI is unavailable right now.");
+    }
+
+    setLoadingCoach(false);
+  }
+
+  async function askAI() {
+    if (!question.trim()) return;
+
+    setAsking(true);
+    setAiReply("");
+
+    const context = grades
+      .map((g) => `${g.subject}: ${g.score}%`)
+      .join(", ");
+
+    try {
+      const reply = await askAITutor(question, context);
+      setAiReply(reply);
+    } catch {
+      setAiReply("Sorry, I couldn’t answer right now.");
+    }
+
+    setAsking(false);
+  }
 
   return (
     <div style={styles.page}>
@@ -51,11 +96,17 @@ export default function Student({ setRole }) {
             </div>
 
             {a.status === "Submitted" ? (
-              <button style={styles.secondaryBtn} onClick={() => setSelected(a)}>
+              <button
+                style={styles.secondaryBtn}
+                onClick={() => setSelected(a)}
+              >
                 View Submission
               </button>
             ) : (
-              <button style={styles.primaryBtn} onClick={() => setSelected(a)}>
+              <button
+                style={styles.primaryBtn}
+                onClick={() => setSelected(a)}
+              >
                 Submit
               </button>
             )}
@@ -63,7 +114,7 @@ export default function Student({ setRole }) {
         ))}
       </section>
 
-      {/* Submission / View Box */}
+      {/* Submission View / Submit */}
       {selected && (
         <section style={styles.section}>
           <h3>{selected.title}</h3>
@@ -79,10 +130,10 @@ export default function Student({ setRole }) {
               <p>{selected.question}</p>
 
               <textarea
+                style={styles.textarea}
                 placeholder="Type your answer here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                style={styles.textarea}
               />
 
               <button
@@ -90,6 +141,7 @@ export default function Student({ setRole }) {
                 onClick={() => {
                   alert("Assignment submitted! (Prototype)");
                   setAnswer("");
+                  setSelected(null);
                 }}
               >
                 Submit Assignment
@@ -138,6 +190,47 @@ export default function Student({ setRole }) {
         ))}
       </section>
 
+      {/* AI Learning Coach */}
+      <section style={styles.section}>
+        <h3>AI Learning Coach</h3>
+
+        <button style={styles.primaryBtn} onClick={runCoachAI}>
+          Get Personalized Learning Advice
+        </button>
+
+        {loadingCoach && <p>Analyzing your progress...</p>}
+
+        {aiCoachText && (
+          <div style={styles.aiBox}>
+            <p>{aiCoachText}</p>
+          </div>
+        )}
+      </section>
+
+      {/* Interactive AI Tutor */}
+      <section style={styles.section}>
+        <h3>Ask the AI Tutor</h3>
+
+        <textarea
+          placeholder="Ask a question about your studies..."
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          style={styles.textarea}
+        />
+
+        <button style={styles.primaryBtn} onClick={askAI}>
+          Ask AI
+        </button>
+
+        {asking && <p>Thinking...</p>}
+
+        {aiReply && (
+          <div style={styles.aiBox}>
+            <p>{aiReply}</p>
+          </div>
+        )}
+      </section>
+
       <button style={styles.logout} onClick={() => setRole(null)}>
         Logout
       </button>
@@ -145,7 +238,6 @@ export default function Student({ setRole }) {
   );
 }
 
-/* ---------- Styles ---------- */
 
 const styles = {
   page: {
@@ -214,6 +306,14 @@ const styles = {
     border: "1px solid #cbd5f5",
     background: "#eef2ff",
     cursor: "pointer",
+  },
+  aiBox: {
+    marginTop: "12px",
+    padding: "14px",
+    borderRadius: "12px",
+    background: "#ecfeff",
+    border: "1px solid #67e8f9",
+    color: "#0f172a",
   },
   logout: {
     marginTop: "10px",
